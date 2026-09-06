@@ -41,7 +41,7 @@ export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
 
       {!revealed && (
         <div className="guess-dock">
-          <YearPicker year={year} onChange={setYear} disabled={busy} />
+          <YearPicker key={round.id} year={year} onChange={setYear} disabled={busy} />
           <TatarstanMap className="guess-map" selected={selected} onSelect={setSelected} disabled={busy} />
           <button className="answer-button" onClick={() => selected && onGuess(year, selected)} disabled={!selected || busy}>
             {busy ? <LoaderCircle className="spin" /> : <Check />}<span>{selected ? 'Ответить' : 'Выберите место'}</span>
