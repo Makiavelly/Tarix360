@@ -6,6 +6,16 @@ type Coordinates struct {
 	Longitude float64 `json:"lng"`
 }
 
+// Hotspot anchors a historical clue to a point inside an equirectangular panorama.
+type Hotspot struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Kind        string  `json:"kind"`
+	Description string  `json:"description"`
+	Yaw         float64 `json:"yaw"`
+	Pitch       float64 `json:"pitch"`
+}
+
 // Event is a historical scene used as a game round.
 type Event struct {
 	ID          string      `json:"id"`
@@ -18,4 +28,5 @@ type Event struct {
 	Panorama    string      `json:"panorama"`
 	SourceTitle string      `json:"sourceTitle"`
 	SourceURL   string      `json:"sourceUrl"`
+	Hotspots    []Hotspot   `json:"hotspots"`
 }

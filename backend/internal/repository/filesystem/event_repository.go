@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/example/tarix360/backend/internal/domain"
@@ -32,6 +33,25 @@ func NewEventRepository(path string) (*EventRepository, error) {
 	for _, event := range events {
 		if event.ID == "" || event.Panorama == "" {
 			return nil, fmt.Errorf("event id and panorama are required")
+		}
+		if len(event.Hotspots) != 3 {
+			return nil, fmt.Errorf("event %q must contain exactly three hotspots", event.ID)
+		}
+		hotspotIDs := make(map[string]struct{}, len(event.Hotspots))
+		for _, hotspot := range event.Hotspots {
+			if hotspot.ID == "" || hotspot.Title == "" || hotspot.Description == "" {
+				return nil, fmt.Errorf("event %q contains an incomplete hotspot", event.ID)
+			}
+			if hotspot.Kind != "time" && hotspot.Kind != "place" && hotspot.Kind != "context" {
+				return nil, fmt.Errorf("event %q hotspot %q has invalid kind", event.ID, hotspot.ID)
+			}
+			if hotspot.Yaw < -math.Pi || hotspot.Yaw > math.Pi || hotspot.Pitch < -math.Pi/2 || hotspot.Pitch > math.Pi/2 {
+				return nil, fmt.Errorf("event %q hotspot %q has invalid spherical coordinates", event.ID, hotspot.ID)
+			}
+			if _, exists := hotspotIDs[hotspot.ID]; exists {
+				return nil, fmt.Errorf("event %q contains duplicate hotspot %q", event.ID, hotspot.ID)
+			}
+			hotspotIDs[hotspot.ID] = struct{}{}
 		}
 		if _, exists := byID[event.ID]; exists {
 			return nil, fmt.Errorf("duplicate event id %q", event.ID)
