@@ -13,6 +13,15 @@ export type RoundResult = {
   maximumScore: number
 }
 
+export type Hotspot = {
+  id: string
+  title: string
+  kind: 'time' | 'place' | 'context'
+  description: string
+  yaw: number
+  pitch: number
+}
+
 export type EventReveal = {
   title: string
   subtitle: string
@@ -22,6 +31,7 @@ export type EventReveal = {
   description: string
   sourceTitle: string
   sourceUrl: string
+  hotspots: Hotspot[]
 }
 
 export type Round = {
@@ -41,4 +51,3 @@ export type Game = {
   currentRound?: Round
   summary?: Round[]
 }
-

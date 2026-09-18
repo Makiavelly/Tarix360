@@ -32,6 +32,7 @@ type EventReveal struct {
 	Description string             `json:"description"`
 	SourceTitle string             `json:"sourceTitle"`
 	SourceURL   string             `json:"sourceUrl"`
+	Hotspots    []domain.Hotspot   `json:"hotspots"`
 }
 
 type GameView struct {
@@ -176,6 +177,7 @@ func (s *GameService) publicRound(ctx context.Context, round domain.Round, numbe
 			Title: event.Title, Subtitle: event.Subtitle, Year: event.Year, Place: event.Place,
 			Coordinates: event.Coordinates, Description: event.Description,
 			SourceTitle: event.SourceTitle, SourceURL: event.SourceURL,
+			Hotspots: append([]domain.Hotspot(nil), event.Hotspots...),
 		}
 	}
 	return result, nil

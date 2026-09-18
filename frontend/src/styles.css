@@ -94,6 +94,26 @@ button { color: inherit; }
 .score span { display: block; font-family: var(--sans); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; opacity: .8; }
 .score strong { font-size: 28px; font-weight: 400; line-height: 1; }
 .help-chip { position: absolute; z-index: 4; top: 82px; left: 28px; display: flex; align-items: center; gap: 7px; padding: 8px 13px; color: white; background: rgba(24,32,30,.43); border: 1px solid rgba(255,255,255,.45); border-radius: 999px; font-family: var(--sans); font-size: 11px; pointer-events: none; backdrop-filter: blur(10px); }
+.history-hotspot-marker { --hotspot-color: var(--green); cursor: pointer; }
+.history-hotspot-marker--time { --hotspot-color: #a96e24; }
+.history-hotspot-marker--context { --hotspot-color: #305f78; }
+.history-hotspot__pulse { position: relative; display: grid; place-items: center; width: 52px; height: 52px; }
+.history-hotspot__pulse::before, .history-hotspot__pulse::after { content: ''; position: absolute; border-radius: 50%; }
+.history-hotspot__pulse::before { inset: 8px; background: var(--hotspot-color); border: 3px solid #fffdf8; box-shadow: 0 5px 18px rgba(0,0,0,.46), inset 0 0 0 1px rgba(0,0,0,.12); transition: transform .18s ease; }
+.history-hotspot__pulse::after { inset: 2px; border: 2px solid rgba(255,255,255,.78); animation: hotspot-ring 2s ease-out infinite; }
+.history-hotspot__pulse i { position: relative; z-index: 1; color: white; font-family: var(--sans); font-size: 13px; font-style: normal; font-weight: 700; line-height: 1; text-shadow: 0 1px 2px rgba(0,0,0,.22); }
+.history-hotspot-marker:hover .history-hotspot__pulse::before { transform: scale(1.12); }
+@keyframes hotspot-ring { 0% { opacity: .88; transform: scale(.62); } 70%, 100% { opacity: 0; transform: scale(1.08); } }
+.hotspot-card { position: absolute; z-index: 8; top: 126px; left: 28px; width: min(390px, calc(100vw - 56px)); max-height: calc(100vh - 530px); min-height: 190px; padding: 21px 46px 19px 21px; overflow: auto; color: var(--ink); background: rgba(255,253,248,.95); border: 1px solid rgba(255,255,255,.92); border-radius: 20px; box-shadow: 0 20px 55px rgba(0,0,0,.3); backdrop-filter: blur(16px); animation: hotspot-card-in .2s ease-out; }
+@keyframes hotspot-card-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+.hotspot-card__meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--green); font-family: var(--sans); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.hotspot-card__meta span:last-child { color: var(--muted); font-weight: 500; letter-spacing: .04em; }
+.hotspot-card h2 { margin: 9px 0 8px; font-size: 28px; font-weight: 400; line-height: 1.06; letter-spacing: -.025em; }
+.hotspot-card p { margin: 0 0 13px; color: #394540; font-size: 15px; line-height: 1.43; }
+.hotspot-card small { color: var(--muted); font-family: var(--sans); font-size: 10px; }
+.hotspot-card__close { position: absolute; top: 13px; right: 13px; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 50%; cursor: pointer; }
+.hotspot-card__close:hover { color: var(--ink); border-color: var(--ink); }
+.hotspot-card__close svg { width: 15px; height: 15px; }
 .guess-dock { position: absolute; z-index: 5; inset: 0; pointer-events: none; }
 .guess-dock > * { pointer-events: auto; }
 .year-picker { position: absolute; left: 50%; bottom: 18px; width: min(740px, calc(100vw - 440px)); transform: translateX(-50%); color: #fff; text-align: center; filter: drop-shadow(0 2px 5px rgba(0,0,0,.36)); }
@@ -198,6 +218,11 @@ button { color: inherit; }
   .score strong { font-size: 22px; }
   .help-chip { top: 70px; left: 16px; }
   .help-chip span { display: none; }
+  .hotspot-card { top: 111px; left: 8px; width: calc(100vw - 16px); min-height: 0; max-height: 210px; padding: 16px 43px 15px 16px; border-radius: 16px; }
+  .hotspot-card__meta { display: block; }
+  .hotspot-card__meta span { display: block; margin-bottom: 3px; }
+  .hotspot-card h2 { margin-top: 7px; font-size: 23px; }
+  .hotspot-card p { font-size: 13px; }
   .guess-dock { inset: auto 0 0; display: grid; grid-template-columns: minmax(0, 1fr) 72px; align-items: stretch; gap: 8px; padding: 8px; }
   .guess-dock > .year-picker { position: relative; left: auto; bottom: auto; grid-column: 1 / -1; width: auto; transform: none; }
   .year-picker__question { margin-bottom: 5px; font-size: 31px; }

@@ -1,6 +1,6 @@
-import { ArrowRight, Check, CircleHelp, LoaderCircle, RotateCcw } from 'lucide-react'
+import { ArrowRight, Check, CircleHelp, LoaderCircle, RotateCcw, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { Coordinates, Game } from '../domain/game'
+import type { Coordinates, Game, Hotspot } from '../domain/game'
 import { Brand } from '../components/Brand'
 import { PanoramaViewer } from '../components/PanoramaViewer'
 import { TatarstanMap } from '../components/TatarstanMap'
@@ -18,18 +18,29 @@ export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
   const round = game.currentRound!
   const [year, setYear] = useState(1200)
   const [selected, setSelected] = useState<Coordinates | null>(null)
+  const [hoveredHotspot, setHoveredHotspot] = useState<Hotspot | null>(null)
+  const [pinnedHotspot, setPinnedHotspot] = useState<Hotspot | null>(null)
   const revealed = Boolean(round.result && round.reveal)
+  const activeHotspot = hoveredHotspot ?? pinnedHotspot
 
   useEffect(() => {
     setYear(1200)
     setSelected(null)
+    setHoveredHotspot(null)
+    setPinnedHotspot(null)
   }, [round.id])
 
   const guessedPoint = revealed ? round.result!.guess.coordinates : selected
 
   return (
     <main className={`game-screen ${revealed ? 'is-revealed' : ''}`}>
-      <PanoramaViewer panorama={round.panoramaUrl} />
+      <PanoramaViewer
+        panorama={round.panoramaUrl}
+        hotspots={revealed ? round.reveal!.hotspots : []}
+        onHotspotEnter={setHoveredHotspot}
+        onHotspotLeave={() => setHoveredHotspot(null)}
+        onHotspotSelect={(hotspot) => setPinnedHotspot((current) => current?.id === hotspot.id ? null : hotspot)}
+      />
       <div className="pano-vignette" />
       <header className="game-header">
         <button className="brand-button" onClick={onExit}><Brand light /></button>
@@ -38,6 +49,29 @@ export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
       </header>
 
       <button className="help-chip" type="button" title="Вращайте панораму мышью или пальцем"><CircleHelp size={18} /> <span>Осмотритесь вокруг</span></button>
+
+      {revealed && activeHotspot && (
+        <aside className="hotspot-card" aria-live="polite">
+          <div className="hotspot-card__meta">
+            <span>Историческая деталь</span>
+            <span>{hotspotKindLabel(activeHotspot.kind)}</span>
+          </div>
+          <h2>{activeHotspot.title}</h2>
+          <p>{activeHotspot.description}</p>
+          <small>{pinnedHotspot?.id === activeHotspot.id ? 'Точка закреплена' : 'Нажмите на точку, чтобы закрепить'}</small>
+          <button
+            className="hotspot-card__close"
+            type="button"
+            aria-label="Закрыть описание"
+            onClick={() => {
+              setHoveredHotspot(null)
+              setPinnedHotspot(null)
+            }}
+          >
+            <X />
+          </button>
+        </aside>
+      )}
 
       {!revealed && (
         <div className="guess-dock">
@@ -69,6 +103,12 @@ export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
       )}
     </main>
   )
+}
+
+function hotspotKindLabel(kind: Hotspot['kind']) {
+  if (kind === 'place') return 'Подсказка о месте'
+  if (kind === 'time') return 'Подсказка о времени'
+  return 'Контекст эпохи'
 }
 
 function pluralYears(value: number) {
