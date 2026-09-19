@@ -42,7 +42,7 @@ func NewEventRepository(path string) (*EventRepository, error) {
 		}
 		hotspotIDs := make(map[string]struct{}, len(event.Hotspots))
 		for _, hotspot := range event.Hotspots {
-			if hotspot.ID == "" || hotspot.Title == "" || hotspot.Description == "" {
+			if hotspot.ID == "" || hotspot.Title == "" || hotspot.Image == "" || hotspot.Description == "" {
 				return nil, fmt.Errorf("event %q contains an incomplete hotspot", event.ID)
 			}
 			if hotspot.Kind != "time" && hotspot.Kind != "place" && hotspot.Kind != "context" && hotspot.Kind != "legend" && hotspot.Kind != "object" && hotspot.Kind != "story" {

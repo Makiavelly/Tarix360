@@ -19,6 +19,7 @@ type Hotspot struct {
 	ID          string  `json:"id"`
 	Title       string  `json:"title"`
 	Kind        string  `json:"kind"`
+	Image       string  `json:"image"`
 	Description string  `json:"description"`
 	Yaw         float64 `json:"yaw"`
 	Pitch       float64 `json:"pitch"`

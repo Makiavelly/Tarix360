@@ -35,10 +35,10 @@ export default function App() {
     await perform(async () => { const next = await service.resume(); if (next) setGame(next); else setCanResume(false) })
   }
 
-  async function guess(year: number, coordinates: Coordinates) {
+  async function guess(year: number, coordinates: Coordinates, timedOut = false) {
     if (!game) return
     await perform(async () => {
-      const updated = await service.guess(game, year, coordinates)
+      const updated = await service.guess(game, year, coordinates, timedOut)
       setGame(updated)
       audio.playRevealEffect()
     })

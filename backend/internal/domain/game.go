@@ -23,6 +23,7 @@ const (
 type Guess struct {
 	Year        int         `json:"year"`
 	Coordinates Coordinates `json:"coordinates"`
+	TimedOut    bool        `json:"timedOut"`
 }
 
 type RoundResult struct {
@@ -31,12 +32,14 @@ type RoundResult struct {
 	DistanceKM   int   `json:"distanceKm"`
 	Score        int   `json:"score"`
 	MaximumScore int   `json:"maximumScore"`
+	TimedOut     bool  `json:"timedOut"`
 }
 
 type Round struct {
-	ID      string       `json:"id"`
-	EventID string       `json:"eventId"`
-	Result  *RoundResult `json:"result,omitempty"`
+	ID        string       `json:"id"`
+	EventID   string       `json:"eventId"`
+	Result    *RoundResult `json:"result,omitempty"`
+	StartedAt time.Time    `json:"startedAt"`
 }
 
 type Game struct {
