@@ -3,7 +3,7 @@ import type { Coordinates, Game } from '../domain/game'
 export interface GameRepository {
   start(): Promise<Game>
   get(gameId: string): Promise<Game>
-  guess(gameId: string, roundId: string, year: number, coordinates: Coordinates): Promise<Game>
+  guess(gameId: string, roundId: string, year: number, coordinates: Coordinates, timedOut?: boolean): Promise<Game>
   next(gameId: string): Promise<Game>
 }
 
@@ -18,11 +18,11 @@ export class HttpGameRepository implements GameRepository {
     return this.request(`/games/${gameId}`)
   }
 
-  guess(gameId: string, roundId: string, year: number, coordinates: Coordinates): Promise<Game> {
+  guess(gameId: string, roundId: string, year: number, coordinates: Coordinates, timedOut = false): Promise<Game> {
     return this.request(`/games/${gameId}/rounds/${roundId}/guess`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ year, lat: coordinates.lat, lng: coordinates.lng }),
+      body: JSON.stringify({ year, lat: coordinates.lat, lng: coordinates.lng, timedOut }),
     })
   }
 
@@ -39,4 +39,3 @@ export class HttpGameRepository implements GameRepository {
     return response.json() as Promise<Game>
   }
 }
-

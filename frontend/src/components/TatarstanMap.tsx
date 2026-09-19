@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import L, { type LayerGroup, type Map as LeafletMap } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { MapPin } from 'lucide-react'
 import type { Coordinates } from '../domain/game'
 
 type MapProps = {
@@ -100,7 +99,6 @@ export function TatarstanMap({ selected = null, answer, disabled = false, hero =
 
   return (
     <div className={`map-shell ${className}`}>
-      <div className="map-title"><MapPin size={15} /> Укажите место на карте</div>
       <div className="real-map" ref={hostRef} role="application" aria-label="Интерактивная карта OpenStreetMap" />
     </div>
   )

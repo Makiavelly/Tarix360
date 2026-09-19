@@ -5,6 +5,7 @@ export type EventType = 'history' | 'legend' | 'culture'
 export type Guess = {
   year: number
   coordinates: Coordinates
+  timedOut: boolean
 }
 
 export type RoundResult = {
@@ -13,12 +14,14 @@ export type RoundResult = {
   distanceKm: number
   score: number
   maximumScore: number
+  timedOut: boolean
 }
 
 export type Hotspot = {
   id: string
   title: string
   kind: 'time' | 'place' | 'context' | 'legend' | 'object' | 'story'
+  imageUrl: string
   description: string
   yaw: number
   pitch: number
@@ -50,6 +53,7 @@ export type Round = {
   total: number
   eventType: EventType
   panoramaUrl: string
+  deadline: string
   result?: RoundResult
   reveal?: EventReveal
 }

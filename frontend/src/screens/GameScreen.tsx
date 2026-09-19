@@ -1,5 +1,5 @@
-import { ArrowRight, BookOpenText, Check, CircleHelp, History, LoaderCircle, Map, RotateCcw, Volume2, VolumeX, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowRight, BookOpenText, Check, CircleHelp, Clock3, History, LoaderCircle, Map, RotateCcw, Volume2, VolumeX, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import type { Coordinates, Game, Hotspot } from '../domain/game'
 import { Brand } from '../components/Brand'
 import { PanoramaViewer } from '../components/PanoramaViewer'
@@ -10,7 +10,7 @@ type Props = {
   game: Game
   busy: boolean
   muted: boolean
-  onGuess: (year: number, coordinates: Coordinates) => void
+  onGuess: (year: number, coordinates: Coordinates, timedOut?: boolean) => Promise<void>
   onNext: () => void
   onToggleMuted: () => void
   onExit: () => void
@@ -26,6 +26,10 @@ export function GameScreen({ game, busy, muted, onGuess, onNext, onToggleMuted, 
   const [timeTravelOpen, setTimeTravelOpen] = useState(false)
   const [showDescription, setShowDescription] = useState(true)
   const [showResultMap, setShowResultMap] = useState(true)
+  const [secondsLeft, setSecondsLeft] = useState(60)
+  const timeoutSubmittedRef = useRef(false)
+  const guessStateRef = useRef({ year, selected, busy, onGuess })
+  guessStateRef.current = { year, selected, busy, onGuess }
   const revealed = Boolean(round.result && round.reveal)
   const activeHotspot = hoveredHotspot ?? pinnedHotspot
   const panoramaTimeline = round.reveal?.panoramaTimeline ?? []
@@ -41,7 +45,33 @@ export function GameScreen({ game, busy, muted, onGuess, onNext, onToggleMuted, 
     setTimeTravelOpen(false)
     setShowDescription(true)
     setShowResultMap(true)
+    setSecondsLeft(60)
+    timeoutSubmittedRef.current = false
   }, [round.id, round.panoramaUrl])
+
+  useEffect(() => {
+    if (revealed) return
+    const deadline = Date.parse(round.deadline)
+    if (Number.isNaN(deadline)) return
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000))
+      setSecondsLeft(remaining)
+      if (remaining === 0 && !timeoutSubmittedRef.current && !guessStateRef.current.busy) {
+        timeoutSubmittedRef.current = true
+        const fallback = { lat: 55.35, lng: 50.5 }
+        void guessStateRef.current.onGuess(
+          guessStateRef.current.year,
+          guessStateRef.current.selected ?? fallback,
+          true,
+        )
+      }
+    }
+
+    updateTimer()
+    const interval = window.setInterval(updateTimer, 250)
+    return () => window.clearInterval(interval)
+  }, [revealed, round.deadline, round.id])
 
   const guessedPoint = revealed ? round.result!.guess.coordinates : selected
 
@@ -57,7 +87,10 @@ export function GameScreen({ game, busy, muted, onGuess, onNext, onToggleMuted, 
       <div className="pano-vignette" />
       <header className="game-header">
         <button className="brand-button" onClick={onExit}><Brand light /></button>
-        <div className="round-chip">Раунд {round.number}<span>/ {round.total}</span></div>
+        <div className="game-header__round">
+          <div className="round-chip">Раунд {round.number}<span>/ {round.total}</span></div>
+          {!revealed && <div className={`round-timer ${secondsLeft <= 10 ? 'is-urgent' : ''}`} aria-live="polite"><Clock3 />{formatTimer(secondsLeft)}</div>}
+        </div>
         <div className="game-header__status">
           <button className="audio-toggle" type="button" onClick={onToggleMuted} aria-label={muted ? 'Включить звук' : 'Выключить звук'} title={muted ? 'Включить звук' : 'Выключить звук'}>
             {muted ? <VolumeX /> : <Volume2 />}
@@ -116,6 +149,15 @@ export function GameScreen({ game, busy, muted, onGuess, onNext, onToggleMuted, 
             <span>{hotspotKindLabel(activeHotspot.kind)}</span>
           </div>
           <h2>{activeHotspot.title}</h2>
+          <div
+            className="hotspot-card__image"
+            role="img"
+            aria-label={`Фрагмент панорамы: ${activeHotspot.title}`}
+            style={{
+              backgroundImage: `url(${JSON.stringify(activeHotspot.imageUrl)})`,
+              backgroundPosition: hotspotImagePosition(activeHotspot),
+            }}
+          />
           <p>{activeHotspot.description}</p>
           <small>{pinnedHotspot?.id === activeHotspot.id ? 'Точка закреплена' : 'Нажмите на точку, чтобы закрепить'}</small>
           <button
@@ -136,7 +178,7 @@ export function GameScreen({ game, busy, muted, onGuess, onNext, onToggleMuted, 
         <div className="guess-dock">
           <YearPicker key={round.id} year={year} onChange={setYear} disabled={busy} />
           <TatarstanMap className="guess-map" selected={selected} onSelect={setSelected} disabled={busy} />
-          <button className="answer-button" onClick={() => selected && onGuess(year, selected)} disabled={!selected || busy}>
+          <button className="answer-button" onClick={() => selected && void onGuess(year, selected)} disabled={!selected || busy || secondsLeft === 0}>
             {busy ? <LoaderCircle className="spin" /> : <Check />}<span>{selected ? 'Ответить' : 'Выберите место'}</span>
           </button>
         </div>
@@ -175,7 +217,9 @@ export function GameScreen({ game, busy, muted, onGuess, onNext, onToggleMuted, 
             <a href={round.reveal!.sourceUrl} target="_blank" rel="noreferrer">Источник: {round.reveal!.sourceTitle} ↗</a>
           </div>}
           <div className="reveal-panel__result">
-            <div className="metric"><span>Ошибка в дате</span><strong>{round.result!.yearError === 0 ? 'Точно!' : `${round.result!.yearError} ${pluralYears(round.result!.yearError)}`}</strong><small>Ваш ответ: {round.result!.guess.year}</small></div>
+            {round.result!.timedOut
+              ? <div className="metric metric--timeout"><span>Ответ</span><strong>Время вышло</strong><small>Раунд завершён автоматически</small></div>
+              : <div className="metric"><span>Ошибка в дате</span><strong>{round.result!.yearError === 0 ? 'Точно!' : `${round.result!.yearError} ${pluralYears(round.result!.yearError)}`}</strong><small>Ваш ответ: {round.result!.guess.year}</small></div>}
             <div className="metric"><span>Ошибка на карте</span><strong>{round.result!.distanceKm === 0 ? 'Точно!' : `${round.result!.distanceKm} км`}</strong><small>Правильное место: {round.reveal!.place}</small></div>
             <div className="metric metric--score"><span>За раунд</span><strong>+{round.result!.score.toLocaleString('ru-RU')}</strong><small>из {round.result!.maximumScore.toLocaleString('ru-RU')}</small></div>
           </div>
@@ -194,6 +238,16 @@ function hotspotKindLabel(kind: Hotspot['kind']) {
   if (kind === 'object') return 'Предмет'
   if (kind === 'story') return 'Сюжетная деталь'
   return 'Контекст эпохи'
+}
+
+function formatTimer(seconds: number) {
+  return `00:${seconds.toString().padStart(2, '0')}`
+}
+
+function hotspotImagePosition(hotspot: Hotspot) {
+  const horizontal = Math.min(100, Math.max(0, 50 + hotspot.yaw / (2 * Math.PI) * 100))
+  const vertical = Math.min(100, Math.max(0, 50 - hotspot.pitch / Math.PI * 100))
+  return `${horizontal}% ${vertical}%`
 }
 
 function pluralYears(value: number) {

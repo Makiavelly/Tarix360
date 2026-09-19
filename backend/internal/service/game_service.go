@@ -12,7 +12,11 @@ import (
 	"github.com/example/tarix360/backend/internal/domain"
 )
 
-const maximumRoundScore = 5000
+const (
+	maximumRoundScore = 5000
+	roundsPerGame     = 3
+	roundDuration     = time.Minute
+)
 
 type PublicRound struct {
 	ID          string              `json:"id"`
@@ -20,6 +24,7 @@ type PublicRound struct {
 	Total       int                 `json:"total"`
 	EventType   domain.EventType    `json:"eventType"`
 	PanoramaURL string              `json:"panoramaUrl"`
+	Deadline    time.Time           `json:"deadline"`
 	Result      *domain.RoundResult `json:"result,omitempty"`
 	Reveal      *EventReveal        `json:"reveal,omitempty"`
 }
@@ -33,7 +38,7 @@ type EventReveal struct {
 	Description      string             `json:"description"`
 	SourceTitle      string             `json:"sourceTitle"`
 	SourceURL        string             `json:"sourceUrl"`
-	Hotspots         []domain.Hotspot   `json:"hotspots"`
+	Hotspots         []HotspotReveal    `json:"hotspots"`
 	PanoramaTimeline []PanoramaMoment   `json:"panoramaTimeline"`
 }
 
@@ -42,6 +47,16 @@ type PanoramaMoment struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	PanoramaURL string `json:"panoramaUrl"`
+}
+
+type HotspotReveal struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Kind        string  `json:"kind"`
+	ImageURL    string  `json:"imageUrl"`
+	Description string  `json:"description"`
+	Yaw         float64 `json:"yaw"`
+	Pitch       float64 `json:"pitch"`
 }
 
 type GameView struct {
@@ -68,16 +83,19 @@ func (s *GameService) Start(ctx context.Context) (GameView, error) {
 		return GameView{}, err
 	}
 	mathrand.Shuffle(len(events), func(i, j int) { events[i], events[j] = events[j], events[i] })
+	roundCount := min(roundsPerGame, len(events))
+	now := time.Now().UTC()
 
 	game := domain.Game{
 		ID:        randomID(),
 		Status:    domain.GameInProgress,
-		CreatedAt: time.Now().UTC(),
-		Rounds:    make([]domain.Round, len(events)),
+		CreatedAt: now,
+		Rounds:    make([]domain.Round, roundCount),
 	}
-	for i, event := range events {
+	for i, event := range events[:roundCount] {
 		game.Rounds[i] = domain.Round{ID: randomID(), EventID: event.ID}
 	}
+	game.Rounds[0].StartedAt = now
 	if err := s.games.Create(ctx, game); err != nil {
 		return GameView{}, err
 	}
@@ -118,10 +136,15 @@ func (s *GameService) Guess(ctx context.Context, gameID, roundID string, guess d
 	}
 	distance := haversineKM(guess.Coordinates, event.Coordinates)
 	yearError := abs(guess.Year - event.Year)
-	roundScore := score(distance, yearError)
+	timedOut := guess.TimedOut || (!round.StartedAt.IsZero() && !time.Now().Before(round.StartedAt.Add(roundDuration)))
+	guess.TimedOut = timedOut
+	roundScore := 0
+	if !timedOut {
+		roundScore = score(distance, yearError)
+	}
 	round.Result = &domain.RoundResult{
 		Guess: guess, YearError: yearError, DistanceKM: int(math.Round(distance)),
-		Score: roundScore, MaximumScore: maximumRoundScore,
+		Score: roundScore, MaximumScore: maximumRoundScore, TimedOut: timedOut,
 	}
 	game.Score += roundScore
 	if err := s.games.Update(ctx, game); err != nil {
@@ -146,6 +169,7 @@ func (s *GameService) Next(ctx context.Context, gameID string) (GameView, error)
 		game.Status = domain.GameCompleted
 	} else {
 		game.CurrentRound++
+		game.Rounds[game.CurrentRound].StartedAt = time.Now().UTC()
 	}
 	if err := s.games.Update(ctx, game); err != nil {
 		return GameView{}, err
@@ -183,9 +207,18 @@ func (s *GameService) publicRound(ctx context.Context, round domain.Round, numbe
 	result := PublicRound{
 		ID: round.ID, Number: number, Total: total, EventType: event.Type,
 		PanoramaURL: "/panoramas/" + event.Panorama + "?v=" + round.ID,
+		Deadline:    round.StartedAt.Add(roundDuration),
 		Result:      round.Result,
 	}
 	if round.Result != nil {
+		hotspots := make([]HotspotReveal, 0, len(event.Hotspots))
+		for _, hotspot := range event.Hotspots {
+			hotspots = append(hotspots, HotspotReveal{
+				ID: hotspot.ID, Title: hotspot.Title, Kind: hotspot.Kind,
+				ImageURL:    "/panoramas/" + hotspot.Image + "?v=" + round.ID,
+				Description: hotspot.Description, Yaw: hotspot.Yaw, Pitch: hotspot.Pitch,
+			})
+		}
 		panoramaTimeline := make([]PanoramaMoment, 0, len(event.AlternatePanoramas)+1)
 		panoramaTimeline = append(panoramaTimeline, PanoramaMoment{
 			Year: event.Year, Title: event.Title, Description: event.Subtitle, PanoramaURL: result.PanoramaURL,
@@ -200,7 +233,7 @@ func (s *GameService) publicRound(ctx context.Context, round domain.Round, numbe
 			Title: event.Title, Subtitle: event.Subtitle, Year: event.Year, Place: event.Place,
 			Coordinates: event.Coordinates, Description: event.Description,
 			SourceTitle: event.SourceTitle, SourceURL: event.SourceURL,
-			Hotspots: append([]domain.Hotspot(nil), event.Hotspots...), PanoramaTimeline: panoramaTimeline,
+			Hotspots: hotspots, PanoramaTimeline: panoramaTimeline,
 		}
 	}
 	return result, nil
