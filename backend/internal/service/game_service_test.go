@@ -22,7 +22,7 @@ func (s eventStub) Get(_ context.Context, id string) (domain.Event, error) {
 
 func TestExactGuessGetsMaximumScoreAndReveal(t *testing.T) {
 	event := domain.Event{
-		ID: "one", Year: 922, Place: "Болгар", Panorama: "one.png",
+		ID: "one", Type: domain.EventTypeHistory, Year: 922, Place: "Болгар", Panorama: "one.png",
 		Coordinates:        domain.Coordinates{Latitude: 54.9749, Longitude: 49.0303},
 		AlternatePanoramas: []domain.AlternatePanorama{{Year: 1870, Title: "Поздний вид", Description: "То же место", Panorama: "later.png"}},
 	}
@@ -54,7 +54,7 @@ func TestExactGuessGetsMaximumScoreAndReveal(t *testing.T) {
 }
 
 func TestNextRequiresGuess(t *testing.T) {
-	event := domain.Event{ID: "one", Year: 922, Panorama: "one.png"}
+	event := domain.Event{ID: "one", Type: domain.EventTypeHistory, Year: 922, Panorama: "one.png"}
 	svc := NewGameService(eventStub{events: []domain.Event{event}}, memory.NewGameRepository())
 	game, err := svc.Start(context.Background())
 	if err != nil {

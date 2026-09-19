@@ -18,6 +18,7 @@ type PublicRound struct {
 	ID          string              `json:"id"`
 	Number      int                 `json:"number"`
 	Total       int                 `json:"total"`
+	EventType   domain.EventType    `json:"eventType"`
 	PanoramaURL string              `json:"panoramaUrl"`
 	Result      *domain.RoundResult `json:"result,omitempty"`
 	Reveal      *EventReveal        `json:"reveal,omitempty"`
@@ -180,7 +181,7 @@ func (s *GameService) publicRound(ctx context.Context, round domain.Round, numbe
 		return PublicRound{}, err
 	}
 	result := PublicRound{
-		ID: round.ID, Number: number, Total: total,
+		ID: round.ID, Number: number, Total: total, EventType: event.Type,
 		PanoramaURL: "/panoramas/" + event.Panorama + "?v=" + round.ID,
 		Result:      round.Result,
 	}

@@ -1,5 +1,7 @@
 export type Coordinates = { lat: number; lng: number }
 
+export type EventType = 'history' | 'legend' | 'culture'
+
 export type Guess = {
   year: number
   coordinates: Coordinates
@@ -46,6 +48,7 @@ export type Round = {
   id: string
   number: number
   total: number
+  eventType: EventType
   panoramaUrl: string
   result?: RoundResult
   reveal?: EventReveal
