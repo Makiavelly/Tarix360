@@ -1,5 +1,13 @@
 package domain
 
+type EventType string
+
+const (
+	EventTypeHistory EventType = "history"
+	EventTypeLegend  EventType = "legend"
+	EventTypeCulture EventType = "culture"
+)
+
 // Coordinates is a geographic point in WGS84.
 type Coordinates struct {
 	Latitude  float64 `json:"lat"`
@@ -27,6 +35,7 @@ type AlternatePanorama struct {
 // Event is a historical scene used as a game round.
 type Event struct {
 	ID                 string              `json:"id"`
+	Type               EventType           `json:"type"`
 	Title              string              `json:"title"`
 	Subtitle           string              `json:"subtitle"`
 	Year               int                 `json:"year"`

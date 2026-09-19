@@ -34,6 +34,9 @@ func NewEventRepository(path string) (*EventRepository, error) {
 		if event.ID == "" || event.Panorama == "" {
 			return nil, fmt.Errorf("event id and panorama are required")
 		}
+		if event.Type != domain.EventTypeHistory && event.Type != domain.EventTypeLegend && event.Type != domain.EventTypeCulture {
+			return nil, fmt.Errorf("event %q has invalid type %q", event.ID, event.Type)
+		}
 		if len(event.Hotspots) != 3 {
 			return nil, fmt.Errorf("event %q must contain exactly three hotspots", event.ID)
 		}

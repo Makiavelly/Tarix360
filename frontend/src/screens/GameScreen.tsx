@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenText, Check, CircleHelp, History, LoaderCircle, Map, RotateCcw, X } from 'lucide-react'
+import { ArrowRight, BookOpenText, Check, CircleHelp, History, LoaderCircle, Map, RotateCcw, Volume2, VolumeX, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Coordinates, Game, Hotspot } from '../domain/game'
 import { Brand } from '../components/Brand'
@@ -9,12 +9,14 @@ import { YearPicker } from '../components/YearPicker'
 type Props = {
   game: Game
   busy: boolean
+  muted: boolean
   onGuess: (year: number, coordinates: Coordinates) => void
   onNext: () => void
+  onToggleMuted: () => void
   onExit: () => void
 }
 
-export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
+export function GameScreen({ game, busy, muted, onGuess, onNext, onToggleMuted, onExit }: Props) {
   const round = game.currentRound!
   const [year, setYear] = useState(1200)
   const [selected, setSelected] = useState<Coordinates | null>(null)
@@ -56,7 +58,12 @@ export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
       <header className="game-header">
         <button className="brand-button" onClick={onExit}><Brand light /></button>
         <div className="round-chip">Раунд {round.number}<span>/ {round.total}</span></div>
-        <div className="score"><span>Очки</span><strong>{game.score.toLocaleString('ru-RU')}</strong></div>
+        <div className="game-header__status">
+          <button className="audio-toggle" type="button" onClick={onToggleMuted} aria-label={muted ? 'Включить звук' : 'Выключить звук'} title={muted ? 'Включить звук' : 'Выключить звук'}>
+            {muted ? <VolumeX /> : <Volume2 />}
+          </button>
+          <div className="score"><span>Очки</span><strong>{game.score.toLocaleString('ru-RU')}</strong></div>
+        </div>
       </header>
 
       <button className="help-chip" type="button" title="Вращайте панораму мышью или пальцем"><CircleHelp size={18} /> <span>Осмотритесь вокруг</span></button>
