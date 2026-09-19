@@ -7,7 +7,7 @@ type Props = { loading: boolean; canResume: boolean; onStart: () => void; onResu
 const previews = [
   { image: '/panoramas/bolgar-922.png', range: '922 год', title: 'Волжская Булгария' },
   { image: '/panoramas/founding-kazan-1005.png', range: 'около 1005 года', title: 'Рождение Казани' },
-  { image: '/panoramas/siege-kazan-1552.png?v=20260919', range: '1552 год', title: 'Казанское ханство' },
+  { image: '/panoramas/kremlin.png?v=20260919', range: '1552 год', title: 'Казанское ханство' },
 ]
 
 export function HomeScreen({ loading, canResume, onStart, onResume }: Props) {
