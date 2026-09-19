@@ -24,6 +24,7 @@ type Guess struct {
 	Year        int         `json:"year"`
 	Coordinates Coordinates `json:"coordinates"`
 	TimedOut    bool        `json:"timedOut"`
+	HintIDs     []string    `json:"hintIds,omitempty"`
 }
 
 type RoundResult struct {
@@ -33,6 +34,7 @@ type RoundResult struct {
 	Score        int   `json:"score"`
 	MaximumScore int   `json:"maximumScore"`
 	TimedOut     bool  `json:"timedOut"`
+	HintPenalty  int   `json:"hintPenalty"`
 }
 
 type Round struct {

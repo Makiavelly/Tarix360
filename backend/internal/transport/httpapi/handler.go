@@ -52,10 +52,11 @@ func (h *Handler) getGame(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) guess(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Year     int     `json:"year"`
-		Lat      float64 `json:"lat"`
-		Lng      float64 `json:"lng"`
-		TimedOut bool    `json:"timedOut"`
+		Year     int      `json:"year"`
+		Lat      float64  `json:"lat"`
+		Lng      float64  `json:"lng"`
+		TimedOut bool     `json:"timedOut"`
+		HintIDs  []string `json:"hintIds"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	decoder.DisallowUnknownFields()
@@ -64,7 +65,7 @@ func (h *Handler) guess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	game, err := h.games.Guess(r.Context(), r.PathValue("gameID"), r.PathValue("roundID"), domain.Guess{
-		Year: request.Year, Coordinates: domain.Coordinates{Latitude: request.Lat, Longitude: request.Lng}, TimedOut: request.TimedOut,
+		Year: request.Year, Coordinates: domain.Coordinates{Latitude: request.Lat, Longitude: request.Lng}, TimedOut: request.TimedOut, HintIDs: request.HintIDs,
 	})
 	if err != nil {
 		h.writeError(w, err)

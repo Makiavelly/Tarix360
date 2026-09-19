@@ -59,7 +59,7 @@ func NewEventRepository(path string) (*EventRepository, error) {
 		panoramaYears := map[int]struct{}{event.Year: {}}
 		panoramaFiles := map[string]struct{}{event.Panorama: {}}
 		for _, panorama := range event.AlternatePanoramas {
-			if panorama.Year <= 0 || panorama.Title == "" || panorama.Description == "" || panorama.Panorama == "" {
+			if panorama.Year < -10000 || panorama.Year == 0 || panorama.Title == "" || panorama.Description == "" || panorama.Panorama == "" {
 				return nil, fmt.Errorf("event %q contains an incomplete alternate panorama", event.ID)
 			}
 			if _, exists := panoramaYears[panorama.Year]; exists {

@@ -6,6 +6,7 @@ export type Guess = {
   year: number
   coordinates: Coordinates
   timedOut: boolean
+  hintIds?: string[]
 }
 
 export type RoundResult = {
@@ -15,14 +16,19 @@ export type RoundResult = {
   score: number
   maximumScore: number
   timedOut: boolean
+  hintPenalty: number
 }
 
 export type Hotspot = {
   id: string
   title: string
+  titleTt?: string
   kind: 'time' | 'place' | 'context' | 'legend' | 'object' | 'story'
   imageUrl: string
+  imageSourceUrl?: string
+  imageCredit?: string
   description: string
+  descriptionTt?: string
   yaw: number
   pitch: number
 }
@@ -30,17 +36,23 @@ export type Hotspot = {
 export type PanoramaMoment = {
   year: number
   title: string
+  titleTt?: string
   description: string
+  descriptionTt?: string
   panoramaUrl: string
 }
 
 export type EventReveal = {
   title: string
+  titleTt?: string
   subtitle: string
+  subtitleTt?: string
   year: number
   place: string
+  placeTt?: string
   coordinates: Coordinates
   description: string
+  descriptionTt?: string
   sourceTitle: string
   sourceUrl: string
   hotspots: Hotspot[]
@@ -56,6 +68,7 @@ export type Round = {
   deadline: string
   result?: RoundResult
   reveal?: EventReveal
+  hotspots?: Hotspot[]
 }
 
 export type Game = {
