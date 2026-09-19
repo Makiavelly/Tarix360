@@ -1,4 +1,4 @@
-import { ArrowRight, Check, CircleHelp, LoaderCircle, RotateCcw, X } from 'lucide-react'
+import { ArrowRight, BookOpenText, Check, CircleHelp, History, LoaderCircle, Map, RotateCcw, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Coordinates, Game, Hotspot } from '../domain/game'
 import { Brand } from '../components/Brand'
@@ -20,23 +20,34 @@ export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
   const [selected, setSelected] = useState<Coordinates | null>(null)
   const [hoveredHotspot, setHoveredHotspot] = useState<Hotspot | null>(null)
   const [pinnedHotspot, setPinnedHotspot] = useState<Hotspot | null>(null)
+  const [selectedPanoramaUrl, setSelectedPanoramaUrl] = useState(round.panoramaUrl)
+  const [timeTravelOpen, setTimeTravelOpen] = useState(false)
+  const [showDescription, setShowDescription] = useState(true)
+  const [showResultMap, setShowResultMap] = useState(true)
   const revealed = Boolean(round.result && round.reveal)
   const activeHotspot = hoveredHotspot ?? pinnedHotspot
+  const panoramaTimeline = round.reveal?.panoramaTimeline ?? []
+  const activeMoment = panoramaTimeline.find((moment) => moment.panoramaUrl === selectedPanoramaUrl)
+  const showingOriginalPanorama = selectedPanoramaUrl === round.panoramaUrl
 
   useEffect(() => {
     setYear(1200)
     setSelected(null)
     setHoveredHotspot(null)
     setPinnedHotspot(null)
-  }, [round.id])
+    setSelectedPanoramaUrl(round.panoramaUrl)
+    setTimeTravelOpen(false)
+    setShowDescription(true)
+    setShowResultMap(true)
+  }, [round.id, round.panoramaUrl])
 
   const guessedPoint = revealed ? round.result!.guess.coordinates : selected
 
   return (
     <main className={`game-screen ${revealed ? 'is-revealed' : ''}`}>
       <PanoramaViewer
-        panorama={round.panoramaUrl}
-        hotspots={revealed ? round.reveal!.hotspots : []}
+        panorama={selectedPanoramaUrl}
+        hotspots={revealed && showingOriginalPanorama ? round.reveal!.hotspots : []}
         onHotspotEnter={setHoveredHotspot}
         onHotspotLeave={() => setHoveredHotspot(null)}
         onHotspotSelect={(hotspot) => setPinnedHotspot((current) => current?.id === hotspot.id ? null : hotspot)}
@@ -49,6 +60,47 @@ export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
       </header>
 
       <button className="help-chip" type="button" title="Вращайте панораму мышью или пальцем"><CircleHelp size={18} /> <span>Осмотритесь вокруг</span></button>
+
+      {revealed && panoramaTimeline.length > 1 && (
+        <>
+          <button
+            className={`time-travel-button ${showingOriginalPanorama ? '' : 'is-active'}`}
+            type="button"
+            aria-expanded={timeTravelOpen}
+            onClick={() => setTimeTravelOpen((open) => !open)}
+          >
+            <History />
+            <span>{activeMoment ? `${activeMoment.year} · другие годы` : 'Другие годы'}</span>
+          </button>
+
+          {timeTravelOpen && (
+            <section className="time-travel-dock" aria-label="Панорамы этого места в разные годы">
+              <header>
+                <div><span>То же место</span><h2>Кремль сквозь время</h2></div>
+                <button type="button" aria-label="Закрыть выбор года" onClick={() => setTimeTravelOpen(false)}><X /></button>
+              </header>
+              <div className="time-travel-dock__moments">
+                {panoramaTimeline.map((moment) => (
+                  <button
+                    key={moment.year}
+                    type="button"
+                    className={moment.panoramaUrl === selectedPanoramaUrl ? 'is-selected' : ''}
+                    aria-pressed={moment.panoramaUrl === selectedPanoramaUrl}
+                    onClick={() => {
+                      setSelectedPanoramaUrl(moment.panoramaUrl)
+                      setHoveredHotspot(null)
+                      setPinnedHotspot(null)
+                    }}
+                  >
+                    <strong>{moment.year}</strong>
+                    <span><b>{moment.title}</b><small>{moment.description}</small></span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
 
       {revealed && activeHotspot && (
         <aside className="hotspot-card" aria-live="polite">
@@ -84,20 +136,43 @@ export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
       )}
 
       {revealed && (
-        <div className="reveal-panel">
-          <div className="reveal-panel__story">
+        <div className={`reveal-panel ${showDescription ? '' : 'is-description-hidden'} ${showResultMap ? '' : 'is-map-hidden'}`}>
+          <div className="reveal-panel__toolbar" aria-label="Настройка панели результата">
+            <span>Показывать</span>
+            <button
+              type="button"
+              className={showDescription ? 'is-active' : ''}
+              aria-pressed={showDescription}
+              aria-label={showDescription ? 'Скрыть описание' : 'Показать описание'}
+              title={showDescription ? 'Скрыть описание' : 'Показать описание'}
+              onClick={() => setShowDescription((visible) => !visible)}
+            >
+              <BookOpenText /><span>Описание</span>
+            </button>
+            <button
+              type="button"
+              className={showResultMap ? 'is-active' : ''}
+              aria-pressed={showResultMap}
+              aria-label={showResultMap ? 'Скрыть карту' : 'Показать карту'}
+              title={showResultMap ? 'Скрыть карту' : 'Показать карту'}
+              onClick={() => setShowResultMap((visible) => !visible)}
+            >
+              <Map /><span>Карта</span>
+            </button>
+          </div>
+          {showDescription && <div className="reveal-panel__story">
             <span className="eyebrow">{round.reveal!.year} · {round.reveal!.place}</span>
             <h1>{round.reveal!.title}</h1>
             <h2>{round.reveal!.subtitle}</h2>
             <p>{round.reveal!.description}</p>
             <a href={round.reveal!.sourceUrl} target="_blank" rel="noreferrer">Источник: {round.reveal!.sourceTitle} ↗</a>
-          </div>
+          </div>}
           <div className="reveal-panel__result">
             <div className="metric"><span>Ошибка в дате</span><strong>{round.result!.yearError === 0 ? 'Точно!' : `${round.result!.yearError} ${pluralYears(round.result!.yearError)}`}</strong><small>Ваш ответ: {round.result!.guess.year}</small></div>
             <div className="metric"><span>Ошибка на карте</span><strong>{round.result!.distanceKm === 0 ? 'Точно!' : `${round.result!.distanceKm} км`}</strong><small>Правильное место: {round.reveal!.place}</small></div>
             <div className="metric metric--score"><span>За раунд</span><strong>+{round.result!.score.toLocaleString('ru-RU')}</strong><small>из {round.result!.maximumScore.toLocaleString('ru-RU')}</small></div>
           </div>
-          <div className="reveal-panel__map"><TatarstanMap selected={guessedPoint} answer={round.reveal!.coordinates} disabled /></div>
+          {showResultMap && <div className="reveal-panel__map"><TatarstanMap selected={guessedPoint} answer={round.reveal!.coordinates} disabled /></div>}
           <button className="next-button" onClick={onNext} disabled={busy}>{busy ? <LoaderCircle className="spin" /> : round.number === round.total ? <RotateCcw /> : <ArrowRight />}<span>{round.number === round.total ? 'Итоги' : 'Далее'}</span></button>
         </div>
       )}
@@ -108,6 +183,9 @@ export function GameScreen({ game, busy, onGuess, onNext, onExit }: Props) {
 function hotspotKindLabel(kind: Hotspot['kind']) {
   if (kind === 'place') return 'Подсказка о месте'
   if (kind === 'time') return 'Подсказка о времени'
+  if (kind === 'legend') return 'Герой легенды'
+  if (kind === 'object') return 'Предмет'
+  if (kind === 'story') return 'Сюжетная деталь'
   return 'Контекст эпохи'
 }
 

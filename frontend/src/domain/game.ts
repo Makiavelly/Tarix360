@@ -16,10 +16,17 @@ export type RoundResult = {
 export type Hotspot = {
   id: string
   title: string
-  kind: 'time' | 'place' | 'context'
+  kind: 'time' | 'place' | 'context' | 'legend' | 'object' | 'story'
   description: string
   yaw: number
   pitch: number
+}
+
+export type PanoramaMoment = {
+  year: number
+  title: string
+  description: string
+  panoramaUrl: string
 }
 
 export type EventReveal = {
@@ -32,6 +39,7 @@ export type EventReveal = {
   sourceTitle: string
   sourceUrl: string
   hotspots: Hotspot[]
+  panoramaTimeline: PanoramaMoment[]
 }
 
 export type Round = {

@@ -24,15 +24,23 @@ type PublicRound struct {
 }
 
 type EventReveal struct {
-	Title       string             `json:"title"`
-	Subtitle    string             `json:"subtitle"`
-	Year        int                `json:"year"`
-	Place       string             `json:"place"`
-	Coordinates domain.Coordinates `json:"coordinates"`
-	Description string             `json:"description"`
-	SourceTitle string             `json:"sourceTitle"`
-	SourceURL   string             `json:"sourceUrl"`
-	Hotspots    []domain.Hotspot   `json:"hotspots"`
+	Title            string             `json:"title"`
+	Subtitle         string             `json:"subtitle"`
+	Year             int                `json:"year"`
+	Place            string             `json:"place"`
+	Coordinates      domain.Coordinates `json:"coordinates"`
+	Description      string             `json:"description"`
+	SourceTitle      string             `json:"sourceTitle"`
+	SourceURL        string             `json:"sourceUrl"`
+	Hotspots         []domain.Hotspot   `json:"hotspots"`
+	PanoramaTimeline []PanoramaMoment   `json:"panoramaTimeline"`
+}
+
+type PanoramaMoment struct {
+	Year        int    `json:"year"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	PanoramaURL string `json:"panoramaUrl"`
 }
 
 type GameView struct {
@@ -177,11 +185,21 @@ func (s *GameService) publicRound(ctx context.Context, round domain.Round, numbe
 		Result:      round.Result,
 	}
 	if round.Result != nil {
+		panoramaTimeline := make([]PanoramaMoment, 0, len(event.AlternatePanoramas)+1)
+		panoramaTimeline = append(panoramaTimeline, PanoramaMoment{
+			Year: event.Year, Title: event.Title, Description: event.Subtitle, PanoramaURL: result.PanoramaURL,
+		})
+		for _, panorama := range event.AlternatePanoramas {
+			panoramaTimeline = append(panoramaTimeline, PanoramaMoment{
+				Year: panorama.Year, Title: panorama.Title, Description: panorama.Description,
+				PanoramaURL: "/panoramas/" + panorama.Panorama + "?v=" + round.ID,
+			})
+		}
 		result.Reveal = &EventReveal{
 			Title: event.Title, Subtitle: event.Subtitle, Year: event.Year, Place: event.Place,
 			Coordinates: event.Coordinates, Description: event.Description,
 			SourceTitle: event.SourceTitle, SourceURL: event.SourceURL,
-			Hotspots: append([]domain.Hotspot(nil), event.Hotspots...),
+			Hotspots: append([]domain.Hotspot(nil), event.Hotspots...), PanoramaTimeline: panoramaTimeline,
 		}
 	}
 	return result, nil
