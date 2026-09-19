@@ -25,6 +25,8 @@ func TestExactGuessGetsMaximumScoreAndReveal(t *testing.T) {
 	event := domain.Event{
 		ID: "one", Type: domain.EventTypeHistory, Year: 922, Place: "Болгар", Panorama: "one.png",
 		Coordinates:        domain.Coordinates{Latitude: 54.9749, Longitude: 49.0303},
+		DescriptionTt:      "event translation",
+		Hotspots:           []domain.Hotspot{{ID: "clue", DescriptionTt: "hotspot translation"}},
 		AlternatePanoramas: []domain.AlternatePanorama{{Year: 1870, Title: "Поздний вид", Description: "То же место", Panorama: "later.png"}},
 	}
 	svc := NewGameService(eventStub{events: []domain.Event{event}}, memory.NewGameRepository())
@@ -34,6 +36,9 @@ func TestExactGuessGetsMaximumScoreAndReveal(t *testing.T) {
 	}
 	if game.CurrentRound.Reveal != nil {
 		t.Fatal("event timeline was revealed before the guess")
+	}
+	if len(game.CurrentRound.Hotspots) != 1 {
+		t.Fatal("hints were not available during guessing")
 	}
 
 	game, err = svc.Guess(context.Background(), game.ID, game.CurrentRound.ID, domain.Guess{Year: 922, Coordinates: event.Coordinates})
@@ -46,11 +51,45 @@ func TestExactGuessGetsMaximumScoreAndReveal(t *testing.T) {
 	if game.CurrentRound.Reveal == nil || game.CurrentRound.Reveal.Place != "Болгар" {
 		t.Fatal("event was not revealed")
 	}
+	if game.CurrentRound.Reveal.DescriptionTt != event.DescriptionTt {
+		t.Fatal("event translation was not included in reveal")
+	}
+	if len(game.CurrentRound.Reveal.Hotspots) != 1 || game.CurrentRound.Reveal.Hotspots[0].DescriptionTt != event.Hotspots[0].DescriptionTt {
+		t.Fatal("hotspot translation was not included in reveal")
+	}
 	if len(game.CurrentRound.Reveal.PanoramaTimeline) != 2 {
 		t.Fatalf("timeline length = %d, want 2", len(game.CurrentRound.Reveal.PanoramaTimeline))
 	}
 	if game.CurrentRound.Reveal.PanoramaTimeline[1].PanoramaURL != "/panoramas/later.png?v="+game.CurrentRound.ID {
 		t.Fatalf("unexpected alternate panorama URL %q", game.CurrentRound.Reveal.PanoramaTimeline[1].PanoramaURL)
+	}
+}
+
+func TestHintPenaltyCountsEachHintOnce(t *testing.T) {
+	event := domain.Event{
+		ID: "one", Type: domain.EventTypeHistory, Year: 922, Panorama: "one.png",
+		Coordinates: domain.Coordinates{Latitude: 54.9749, Longitude: 49.0303},
+		Hotspots:    []domain.Hotspot{{ID: "first"}, {ID: "second"}},
+	}
+	svc := NewGameService(eventStub{events: []domain.Event{event}}, memory.NewGameRepository())
+	game, err := svc.Start(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	game, err = svc.Guess(context.Background(), game.ID, game.CurrentRound.ID, domain.Guess{
+		Year: 922, Coordinates: event.Coordinates, HintIDs: []string{"first", "first", "unknown"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if game.CurrentRound.Result.HintPenalty != hintPenalty {
+		t.Fatalf("hint penalty = %d, want %d", game.CurrentRound.Result.HintPenalty, hintPenalty)
+	}
+	if game.CurrentRound.Result.Score != maximumRoundScore-hintPenalty {
+		t.Fatalf("score = %d, want %d", game.CurrentRound.Result.Score, maximumRoundScore-hintPenalty)
+	}
+	if len(game.CurrentRound.Result.Guess.HintIDs) != 1 {
+		t.Fatalf("hint ids = %v, want one unique valid id", game.CurrentRound.Result.Guess.HintIDs)
 	}
 }
 
@@ -126,5 +165,26 @@ func TestTimedOutGuessGetsZeroScore(t *testing.T) {
 	}
 	if game.CurrentRound.Result.Score != 0 || !game.CurrentRound.Result.TimedOut {
 		t.Fatalf("timed out result = %+v", game.CurrentRound.Result)
+	}
+}
+
+func TestGuessYearBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		year  int
+		valid bool
+	}{{-10000, true}, {-1, true}, {1, true}, {499, true}, {799, true}, {time.Now().Year(), true}, {0, false}, {-10001, false}, {time.Now().Year() + 1, false}} {
+		event := domain.Event{ID: "one", Type: domain.EventTypeHistory, Year: 922, Panorama: "one.png"}
+		svc := NewGameService(eventStub{events: []domain.Event{event}}, memory.NewGameRepository())
+		game, err := svc.Start(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = svc.Guess(context.Background(), game.ID, game.CurrentRound.ID, domain.Guess{Year: tc.year})
+		if tc.valid && err != nil {
+			t.Errorf("year %d should be accepted: %v", tc.year, err)
+		}
+		if !tc.valid && err != domain.ErrInvalidGuess {
+			t.Errorf("year %d: got %v, want invalid guess", tc.year, err)
+		}
 	}
 }

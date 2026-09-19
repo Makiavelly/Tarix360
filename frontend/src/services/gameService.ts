@@ -23,9 +23,9 @@ export class GameService {
     }
   }
 
-  guess(game: Game, year: number, coordinates: Coordinates, timedOut = false): Promise<Game> {
+  guess(game: Game, year: number, coordinates: Coordinates, timedOut = false, hintIds: string[] = []): Promise<Game> {
     if (!game.currentRound) throw new Error('Раунд не найден')
-    return this.repository.guess(game.id, game.currentRound.id, year, coordinates, timedOut)
+    return this.repository.guess(game.id, game.currentRound.id, year, coordinates, timedOut, hintIds)
   }
 
   async next(game: Game): Promise<Game> {

@@ -14,6 +14,7 @@ import (
 
 const (
 	maximumRoundScore = 5000
+	hintPenalty       = 300
 	roundsPerGame     = 3
 	roundDuration     = time.Minute
 )
@@ -27,15 +28,20 @@ type PublicRound struct {
 	Deadline    time.Time           `json:"deadline"`
 	Result      *domain.RoundResult `json:"result,omitempty"`
 	Reveal      *EventReveal        `json:"reveal,omitempty"`
+	Hotspots    []HotspotReveal     `json:"hotspots,omitempty"`
 }
 
 type EventReveal struct {
 	Title            string             `json:"title"`
+	TitleTt          string             `json:"titleTt,omitempty"`
 	Subtitle         string             `json:"subtitle"`
+	SubtitleTt       string             `json:"subtitleTt,omitempty"`
 	Year             int                `json:"year"`
 	Place            string             `json:"place"`
+	PlaceTt          string             `json:"placeTt,omitempty"`
 	Coordinates      domain.Coordinates `json:"coordinates"`
 	Description      string             `json:"description"`
+	DescriptionTt    string             `json:"descriptionTt,omitempty"`
 	SourceTitle      string             `json:"sourceTitle"`
 	SourceURL        string             `json:"sourceUrl"`
 	Hotspots         []HotspotReveal    `json:"hotspots"`
@@ -43,20 +49,26 @@ type EventReveal struct {
 }
 
 type PanoramaMoment struct {
-	Year        int    `json:"year"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	PanoramaURL string `json:"panoramaUrl"`
+	Year          int    `json:"year"`
+	Title         string `json:"title"`
+	TitleTt       string `json:"titleTt,omitempty"`
+	Description   string `json:"description"`
+	DescriptionTt string `json:"descriptionTt,omitempty"`
+	PanoramaURL   string `json:"panoramaUrl"`
 }
 
 type HotspotReveal struct {
-	ID          string  `json:"id"`
-	Title       string  `json:"title"`
-	Kind        string  `json:"kind"`
-	ImageURL    string  `json:"imageUrl"`
-	Description string  `json:"description"`
-	Yaw         float64 `json:"yaw"`
-	Pitch       float64 `json:"pitch"`
+	ID             string  `json:"id"`
+	Title          string  `json:"title"`
+	TitleTt        string  `json:"titleTt,omitempty"`
+	Kind           string  `json:"kind"`
+	ImageURL       string  `json:"imageUrl"`
+	ImageSourceURL string  `json:"imageSourceUrl,omitempty"`
+	ImageCredit    string  `json:"imageCredit,omitempty"`
+	Description    string  `json:"description"`
+	DescriptionTt  string  `json:"descriptionTt,omitempty"`
+	Yaw            float64 `json:"yaw"`
+	Pitch          float64 `json:"pitch"`
 }
 
 type GameView struct {
@@ -111,7 +123,7 @@ func (s *GameService) Get(ctx context.Context, gameID string) (GameView, error) 
 }
 
 func (s *GameService) Guess(ctx context.Context, gameID, roundID string, guess domain.Guess) (GameView, error) {
-	if guess.Year < 500 || guess.Year > time.Now().Year() || guess.Coordinates.Latitude < -90 || guess.Coordinates.Latitude > 90 || guess.Coordinates.Longitude < -180 || guess.Coordinates.Longitude > 180 {
+	if guess.Year < -10000 || guess.Year == 0 || guess.Year > time.Now().Year() || guess.Coordinates.Latitude < -90 || guess.Coordinates.Latitude > 90 || guess.Coordinates.Longitude < -180 || guess.Coordinates.Longitude > 180 {
 		return GameView{}, domain.ErrInvalidGuess
 	}
 
@@ -135,16 +147,34 @@ func (s *GameService) Guess(ctx context.Context, gameID, roundID string, guess d
 		return GameView{}, err
 	}
 	distance := haversineKM(guess.Coordinates, event.Coordinates)
-	yearError := abs(guess.Year - event.Year)
+	yearError := abs(historicalYearIndex(guess.Year) - historicalYearIndex(event.Year))
 	timedOut := guess.TimedOut || (!round.StartedAt.IsZero() && !time.Now().Before(round.StartedAt.Add(roundDuration)))
+	validHints := make(map[string]struct{}, len(event.Hotspots))
+	for _, hotspot := range event.Hotspots {
+		validHints[hotspot.ID] = struct{}{}
+	}
+	uniqueHints := make([]string, 0, len(guess.HintIDs))
+	seenHints := make(map[string]struct{}, len(guess.HintIDs))
+	for _, id := range guess.HintIDs {
+		if _, valid := validHints[id]; !valid {
+			continue
+		}
+		if _, seen := seenHints[id]; seen {
+			continue
+		}
+		seenHints[id] = struct{}{}
+		uniqueHints = append(uniqueHints, id)
+	}
+	guess.HintIDs = uniqueHints
+	penalty := len(uniqueHints) * hintPenalty
 	guess.TimedOut = timedOut
 	roundScore := 0
 	if !timedOut {
-		roundScore = score(distance, yearError)
+		roundScore = max(0, score(distance, yearError)-penalty)
 	}
 	round.Result = &domain.RoundResult{
 		Guess: guess, YearError: yearError, DistanceKM: int(math.Round(distance)),
-		Score: roundScore, MaximumScore: maximumRoundScore, TimedOut: timedOut,
+		Score: roundScore, MaximumScore: maximumRoundScore, TimedOut: timedOut, HintPenalty: penalty,
 	}
 	game.Score += roundScore
 	if err := s.games.Update(ctx, game); err != nil {
@@ -210,28 +240,33 @@ func (s *GameService) publicRound(ctx context.Context, round domain.Round, numbe
 		Deadline:    round.StartedAt.Add(roundDuration),
 		Result:      round.Result,
 	}
-	if round.Result != nil {
-		hotspots := make([]HotspotReveal, 0, len(event.Hotspots))
-		for _, hotspot := range event.Hotspots {
-			hotspots = append(hotspots, HotspotReveal{
-				ID: hotspot.ID, Title: hotspot.Title, Kind: hotspot.Kind,
-				ImageURL:    "/panoramas/" + hotspot.Image + "?v=" + round.ID,
-				Description: hotspot.Description, Yaw: hotspot.Yaw, Pitch: hotspot.Pitch,
-			})
+	hotspots := make([]HotspotReveal, 0, len(event.Hotspots))
+	for _, hotspot := range event.Hotspots {
+		imageURL := "/panoramas/" + hotspot.Image + "?v=" + round.ID
+		if hotspot.ImageSourceURL != "" {
+			imageURL = hotspot.Image
 		}
+		hotspots = append(hotspots, HotspotReveal{
+			ID: hotspot.ID, Title: hotspot.Title, TitleTt: hotspot.TitleTt, Kind: hotspot.Kind,
+			ImageURL: imageURL, ImageSourceURL: hotspot.ImageSourceURL, ImageCredit: hotspot.ImageCredit,
+			Description: hotspot.Description, DescriptionTt: hotspot.DescriptionTt, Yaw: hotspot.Yaw, Pitch: hotspot.Pitch,
+		})
+	}
+	result.Hotspots = hotspots
+	if round.Result != nil {
 		panoramaTimeline := make([]PanoramaMoment, 0, len(event.AlternatePanoramas)+1)
 		panoramaTimeline = append(panoramaTimeline, PanoramaMoment{
-			Year: event.Year, Title: event.Title, Description: event.Subtitle, PanoramaURL: result.PanoramaURL,
+			Year: event.Year, Title: event.Title, TitleTt: event.TitleTt, Description: event.Subtitle, DescriptionTt: event.SubtitleTt, PanoramaURL: result.PanoramaURL,
 		})
 		for _, panorama := range event.AlternatePanoramas {
 			panoramaTimeline = append(panoramaTimeline, PanoramaMoment{
-				Year: panorama.Year, Title: panorama.Title, Description: panorama.Description,
+				Year: panorama.Year, Title: panorama.Title, TitleTt: panorama.TitleTt, Description: panorama.Description, DescriptionTt: panorama.DescriptionTt,
 				PanoramaURL: "/panoramas/" + panorama.Panorama + "?v=" + round.ID,
 			})
 		}
 		result.Reveal = &EventReveal{
-			Title: event.Title, Subtitle: event.Subtitle, Year: event.Year, Place: event.Place,
-			Coordinates: event.Coordinates, Description: event.Description,
+			Title: event.Title, TitleTt: event.TitleTt, Subtitle: event.Subtitle, SubtitleTt: event.SubtitleTt, Year: event.Year, Place: event.Place, PlaceTt: event.PlaceTt,
+			Coordinates: event.Coordinates, Description: event.Description, DescriptionTt: event.DescriptionTt,
 			SourceTitle: event.SourceTitle, SourceURL: event.SourceURL,
 			Hotspots: hotspots, PanoramaTimeline: panoramaTimeline,
 		}
@@ -274,4 +309,12 @@ func randomID() string {
 // StableSummaryOrder is exposed for clients that want a chronological archive.
 func StableSummaryOrder(events []domain.Event) {
 	sort.SliceStable(events, func(i, j int) bool { return events[i].Year < events[j].Year })
+}
+
+// Convert historical years to a continuous axis without a year zero.
+func historicalYearIndex(year int) int {
+	if year < 0 {
+		return year + 1
+	}
+	return year
 }
