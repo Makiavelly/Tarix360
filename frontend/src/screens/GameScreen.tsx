@@ -1,5 +1,5 @@
 import { ArrowRight, BookOpenText, Check, Clock3, History, LoaderCircle, Map, RotateCcw, Volume2, VolumeX, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { Coordinates, Game, Hotspot } from '../domain/game'
 import { TranslatedDescription } from '../components/TranslatedDescription'
 import { Brand } from '../components/Brand'
@@ -29,6 +29,7 @@ type Props = {
 }
 
 const noHotspots: Hotspot[] = []
+type ReportSelection = { x: number; y: number; width: number; height: number }
 
 export function GameScreen({ game, busy, muted, volume, onVolumeChange, onTimeExpired, onTimeWarning, onHintUsed, onGuess, onNext, onToggleMuted, onExit }: Props) {
   const { t, localize, language } = useLanguage()
@@ -52,6 +53,14 @@ export function GameScreen({ game, busy, muted, volume, onVolumeChange, onTimeEx
   const expirySoundRef = useRef(false)
   const warningSecondRef = useRef<number | null>(null)
   const timeoutSubmittedRef = useRef(false)
+  const panoramaViewRef = useRef({ yaw: 0, pitch: 0 })
+  const reportStartRef = useRef<{ x: number; y: number } | null>(null)
+  const [reportMode, setReportMode] = useState(false)
+  const [reportSelection, setReportSelection] = useState<ReportSelection | null>(null)
+  const [reportText, setReportText] = useState('')
+  const [reportSending, setReportSending] = useState(false)
+  const [reportSent, setReportSent] = useState(false)
+  const [reportError, setReportError] = useState(false)
   const guessStateRef = useRef({ year, selected, busy, onGuess, onTimeExpired, onTimeWarning, usedHintIds })
   guessStateRef.current = { year, selected, busy, onGuess, onTimeExpired, onTimeWarning, usedHintIds }
   const revealed = Boolean(round.result && round.reveal)
@@ -74,6 +83,11 @@ export function GameScreen({ game, busy, muted, volume, onVolumeChange, onTimeEx
     expirySoundRef.current = false
     warningSecondRef.current = null
     timeoutSubmittedRef.current = false
+    setReportMode(false)
+    setReportSelection(null)
+    setReportText('')
+    setReportSent(false)
+    setReportError(false)
   }, [round.id, round.panoramaUrl])
 
   useEffect(() => {
@@ -132,6 +146,31 @@ export function GameScreen({ game, busy, muted, volume, onVolumeChange, onTimeEx
 
   const availableHotspots = showingOriginalPanorama ? (revealed ? round.reveal!.hotspots : round.hotspots ?? noHotspots) : noHotspots
 
+  const reportPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    return { x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)), y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)) }
+  }
+  const updateReportSelection = (point: { x: number; y: number }) => {
+    const start = reportStartRef.current
+    if (!start) return
+    setReportSelection({ x: Math.min(start.x, point.x), y: Math.min(start.y, point.y), width: Math.abs(point.x - start.x), height: Math.abs(point.y - start.y) })
+  }
+  const submitReport = async () => {
+    if (!reportSelection || !reportText.trim()) return
+    setReportSending(true)
+    setReportError(false)
+    try {
+      const response = await fetch('/api/v1/reports', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: game.id, roundId: round.id, panoramaUrl: selectedPanoramaUrl, description: reportText.trim(), ...reportSelection, ...panoramaViewRef.current }),
+      })
+      if (!response.ok) throw new Error('report failed')
+      setReportSent(true)
+      window.setTimeout(() => { setReportMode(false); setReportSelection(null); setReportText(''); setReportSent(false) }, 1300)
+    } catch { setReportError(true) }
+    finally { setReportSending(false) }
+  }
+
   return <main className={`game-screen ${revealed ? 'is-revealed' : ''}`} onPointerDown={(event) => {
     if ((event.target as Element).closest('.panorama')) setMapExpanded(false)
   }}>
@@ -139,7 +178,8 @@ export function GameScreen({ game, busy, muted, volume, onVolumeChange, onTimeEx
       hotspots={availableHotspots}
       activeHotspot={showingOriginalPanorama ? displayedHotspot : null}
       onHotspotLeave={() => setActiveHotspot(null)}
-      onHotspotSelect={openHotspot}>
+      onHotspotSelect={openHotspot}
+      onViewChange={(position) => { panoramaViewRef.current = position }}>
       {displayedHotspot && <aside key={displayedHotspot.id} className={`hotspot-card ornament-panel ${activeHotspot ? '' : 'is-exiting'}`} inert={!activeHotspot}>
         <div className="hotspot-card__meta"><span>{revealed ? t('Историческая деталь', 'Тарихи деталь') : t('Подсказка', 'Ишарә')}</span><span>{kindLabel(displayedHotspot.kind)}</span></div>
         <h2>{localize(displayedHotspot.title, displayedHotspot.titleTt)}</h2>
@@ -152,6 +192,24 @@ export function GameScreen({ game, busy, muted, volume, onVolumeChange, onTimeEx
       </aside>}
     </PanoramaViewer>
     <div className="pano-vignette" />
+    {!reportMode && <button className="report-open" type="button" onClick={() => { setReportMode(true); setActiveHotspot(null) }}>{t('Сообщить о неточности', 'Төгәлсезлек турында хәбәр итү')}</button>}
+    {reportMode && <>
+      <div className="report-select" onPointerDown={(event) => {
+        if (reportSelection) return
+        event.currentTarget.setPointerCapture(event.pointerId)
+        const point = reportPoint(event); reportStartRef.current = point; setReportSelection({ ...point, width: 0, height: 0 })
+      }} onPointerMove={(event) => { if (reportStartRef.current) updateReportSelection(reportPoint(event)) }} onPointerUp={(event) => {
+        updateReportSelection(reportPoint(event)); reportStartRef.current = null
+      }}>
+        {reportSelection && <div className="report-selection" style={{ left: `${reportSelection.x * 100}%`, top: `${reportSelection.y * 100}%`, width: `${reportSelection.width * 100}%`, height: `${reportSelection.height * 100}%` }} />}
+        {!reportSelection && <p>{t('Выделите область, где есть неточность', 'Төгәлсезлек булган өлкәне билгеләгез')}</p>}
+      </div>
+      <button className="report-cancel" type="button" onClick={() => { setReportMode(false); setReportSelection(null); reportStartRef.current = null }}>{t('Отмена', 'Баш тарту')}</button>
+      {reportSelection && reportSelection.width > .01 && reportSelection.height > .01 && <form className="report-form ornament-panel" onSubmit={(event) => { event.preventDefault(); void submitReport() }}>
+        <strong>{reportSent ? t('Сообщение отправлено', 'Хәбәр җибәрелде') : t('Что не соответствует реальности?', 'Нәрсә чынбарлыкка туры килми?')}</strong>
+        {!reportSent && <><textarea autoFocus maxLength={2000} required value={reportText} onChange={(event) => setReportText(event.target.value)} placeholder={t('Опишите неточность…', 'Төгәлсезлекне тасвирлагыз…')} />{reportError && <small>{t('Не удалось отправить. Попробуйте ещё раз.', 'Җибәреп булмады. Кабатлап карагыз.')}</small>}<div><button type="button" onClick={() => setReportSelection(null)}>{t('Выделить заново', 'Яңадан билгеләү')}</button><button type="submit" disabled={reportSending || !reportText.trim()}>{reportSending ? t('Отправляем…', 'Җибәрәбез…') : t('Отправить', 'Җибәрү')}</button></div></>}
+      </form>}
+    </>}
     {hintPulse > 0 && <div key={hintPulse} className="hint-cost-pulse" aria-hidden="true"><i /><i /><i /><b>−300</b></div>}
     <header className="game-header">
       <button className="brand-button" onClick={onExit} aria-label={t('На главную', 'Баш биткә')}><Brand light /></button>

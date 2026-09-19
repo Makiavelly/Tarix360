@@ -9,7 +9,7 @@ FROM alpine:3.21
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 COPY --from=build /out/tarix360 /app/tarix360
-COPY storage /app/storage
+COPY --chown=app:app storage /app/storage
 USER app
 EXPOSE 8080
 ENTRYPOINT ["/app/tarix360"]
