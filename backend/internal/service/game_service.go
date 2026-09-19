@@ -171,7 +171,11 @@ func (s *GameService) publicRound(ctx context.Context, round domain.Round, numbe
 	if err != nil {
 		return PublicRound{}, err
 	}
-	result := PublicRound{ID: round.ID, Number: number, Total: total, PanoramaURL: "/panoramas/" + event.Panorama, Result: round.Result}
+	result := PublicRound{
+		ID: round.ID, Number: number, Total: total,
+		PanoramaURL: "/panoramas/" + event.Panorama + "?v=" + round.ID,
+		Result:      round.Result,
+	}
 	if round.Result != nil {
 		result.Reveal = &EventReveal{
 			Title: event.Title, Subtitle: event.Subtitle, Year: event.Year, Place: event.Place,
