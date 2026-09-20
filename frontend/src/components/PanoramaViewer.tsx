@@ -20,9 +20,10 @@ type Props = {
   onHotspotEnter?: (hotspot: Hotspot) => void
   onHotspotLeave?: (hotspot: Hotspot) => void
   onHotspotSelect?: (hotspot: Hotspot) => void
+  onViewChange?: (position: { yaw: number; pitch: number }) => void
 }
 
-export function PanoramaViewer({ activeHotspot, children, panorama, hotspots = [], onHotspotEnter, onHotspotLeave, onHotspotSelect }: Props) {
+export function PanoramaViewer({ activeHotspot, children, panorama, hotspots = [], onHotspotEnter, onHotspotLeave, onHotspotSelect, onViewChange }: Props) {
   const { t, language } = useLanguage()
   const languageRef = useRef(language)
   languageRef.current = language
@@ -67,9 +68,11 @@ export function PanoramaViewer({ activeHotspot, children, panorama, hotspots = [
   const pluginRef = useRef<MarkersPlugin | null>(null)
   const hotspotsRef = useRef(hotspots)
   const callbacksRef = useRef({ onHotspotEnter, onHotspotLeave, onHotspotSelect })
+  const onViewChangeRef = useRef(onViewChange)
 
   hotspotsRef.current = hotspots
   callbacksRef.current = { onHotspotEnter, onHotspotLeave, onHotspotSelect }
+  onViewChangeRef.current = onViewChange
 
   useEffect(() => {
     if (!hostRef.current) return
@@ -92,7 +95,10 @@ export function PanoramaViewer({ activeHotspot, children, panorama, hotspots = [
     })
 
     viewerRef.current = viewer
-    viewer.addEventListener(viewerEvents.RenderEvent.type, updateAnchor)
+    viewer.addEventListener(viewerEvents.RenderEvent.type, () => {
+      updateAnchor()
+      onViewChangeRef.current?.(viewer.getPosition())
+    })
 
     const plugin = viewer.getPlugin<MarkersPlugin>(MarkersPlugin)
     pluginRef.current = plugin

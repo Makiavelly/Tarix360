@@ -19,7 +19,7 @@ export function ResultsScreen({ game, onRestart, onHome }: { game: Game; onResta
         <button className="primary-button" onClick={onRestart}>{t('Играть ещё раз', 'Тагын уйнау')} <ArrowRight /></button>
       </section>
       <section className="results-list">
-        <div className="section-heading"><span>{t('Ваш маршрут', 'Сезнең маршрут')}</span><h2>{t('Три главы истории', 'Тарихның өч бүлеге')}</h2></div>
+        <div className="section-heading"><span>{t('Ваш маршрут', 'Сезнең маршрут')}</span></div>
         {game.summary?.map((round) => <article key={round.id}>
           <img src={round.panoramaUrl} alt="" />
           <div><span>{t('Раунд', 'Раунд')} {round.number}</span><h3>{localize(round.reveal?.title, round.reveal?.titleTt)}</h3><p>{round.reveal ? formatYear(round.reveal.year, language) : ''} · {localize(round.reveal?.place, round.reveal?.placeTt)}</p></div>

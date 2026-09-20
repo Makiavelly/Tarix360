@@ -495,6 +495,20 @@ button { color: inherit; }
 .hint-cost-pulse b { display: block; text-align: center; color: #fffdf8; font: 600 24px var(--sans); letter-spacing: -.03em; text-shadow: 0 3px 14px #000; }
 @keyframes hint-particle { to { opacity: 0; transform: translateY(-48px) scale(.4); } }
 @keyframes hint-cost-out { 0% { opacity: 0; transform: translate(-50%, 14px) scale(.82); } 16%, 68% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -18px) scale(.94); } }
+.report-open, .report-cancel { position: absolute; z-index: 13; left: 24px; bottom: 22px; padding: 9px 14px; color: #fff; border: 1px solid #ffffff70; border-radius: 999px; background: #18201e99; backdrop-filter: blur(10px); font: 11px var(--sans); cursor: pointer; }
+.report-cancel { z-index: 24; bottom: auto; top: 86px; background: #18201ed9; }
+.report-select { position: absolute; z-index: 20; inset: 0; cursor: crosshair; background: #08100d42; touch-action: none; user-select: none; }
+.report-select > p { position: absolute; top: 88px; left: 50%; margin: 0; padding: 10px 16px; transform: translateX(-50%); color: white; border: 1px solid #ffffff70; border-radius: 999px; background: #18201ed9; font: 12px var(--sans); pointer-events: none; }
+.report-selection { position: absolute; min-width: 2px; min-height: 2px; border: 2px solid #f2cf87; border-radius: 4px; background: #d6a64f26; box-shadow: 0 0 0 9999px #07100c73, 0 0 22px #d6a64f9c; pointer-events: none; }
+.report-form { position: absolute; z-index: 25; left: 50%; bottom: 26px; width: min(520px, calc(100vw - 32px)); padding: 27px 24px; transform: translateX(-50%); border: 1px solid #ffffffb8; border-radius: 20px; background-color: #fffdf8f2; box-shadow: 0 18px 60px #0007; }
+.report-form strong { display: block; margin-bottom: 12px; color: var(--ink); font-size: 21px; font-weight: 400; }
+.report-form textarea { display: block; width: 100%; min-height: 90px; padding: 12px 14px; resize: vertical; color: var(--ink); border: 1px solid var(--line); border-radius: 12px; background: #fff; font: 13px/1.5 var(--sans); outline: none; }
+.report-form textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px #295e4e1c; }
+.report-form > small { display: block; margin-top: 8px; color: #9b3434; font: 11px var(--sans); }
+.report-form > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.report-form button { padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; background: transparent; font: 11px var(--sans); cursor: pointer; }
+.report-form button[type='submit'] { color: white; border-color: var(--green-dark); background: var(--green-dark); }
+.report-form button:disabled { opacity: .55; cursor: wait; }
 .legend-hint { position: absolute; z-index: 6; top: 106px; left: 28px; }
 .legend-hint > button { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid #fff5; border-radius: 13px; color: white; background: #183d33d9; cursor: pointer; }
 .legend-tip { position: absolute; top: 0; left: 52px; width: min(340px, calc(100vw - 100px)); padding: 17px 20px; border: 1px solid #fff5; border-radius: 15px; color: white; background: #183d33ed; backdrop-filter: blur(12px); opacity: 0; visibility: hidden; transform: translateX(-6px); transition: opacity .35s, visibility .35s, transform .35s; pointer-events: none; }
@@ -561,6 +575,10 @@ button { color: inherit; }
   .round-reveal.is-ready .reveal-stat:last-child { transform: translateX(3px); }
   .round-reveal.is-ready .reveal-stat:nth-child(2) { transform: none; }
   .hotspot-illustration img { height: 90px; }
+  .report-open { top: 112px; bottom: auto; left: 12px; }
+  .report-cancel { top: 112px; left: 12px; }
+  .report-select > p { top: 160px; width: calc(100vw - 32px); text-align: center; }
+  .report-form { bottom: 12px; padding: 23px 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hotspot-anchor, .legend-tip, .volume-control, .timer-border rect, .guess-dock > .map-shell { transition: none; }
